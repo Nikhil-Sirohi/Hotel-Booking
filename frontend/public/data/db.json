@@ -1,0 +1,40 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "email": "test@example.com",
+      "password": "password123"
+    },
+    {
+      "email": "nikhlsirohy001@gmail.com",
+      "password": "12344",
+      "id": 2
+    },
+    {
+      "email": "test004@gmail.com",
+      "password": "kdjjdjd",
+      "id": 3
+    },
+    {
+      "email": "test004@gmail.com",
+      "password": "kdjjdjd",
+      "id": 4
+    }
+  ],
+  "hotels": [
+    {
+      "id": 1,
+      "name": "Hotel Paradise",
+      "location": "Mumbai",
+      "description": "Luxury hotel with sea view"
+    },
+    {
+      "id": 2,
+      "name": "Mountain Retreat",
+      "location": "Shimla",
+      "description": "Cozy resort in the hills"
+    }
+  ],
+  "bookings": [],
+  "checkins": []
+}
