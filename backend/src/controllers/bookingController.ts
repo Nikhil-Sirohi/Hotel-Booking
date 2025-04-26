@@ -1,57 +1,95 @@
 import { Request, Response } from "express";
 import prisma from "../models";
-
-export const getHotels = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const hotels = await prisma.hotel.findMany();
-    res.status(200).json(hotels);
-  } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
+import { AuthenticatedRequest } from "../middleware/auth";
 
 export const createBooking = async (
-  req: Request,
+  req: AuthenticatedRequest,
   res: Response
-): Promise<void> => {
-  const { userId, hotelId, checkInDate, checkOutDate, numMembers } = req.body;
-
-  if (!userId || !hotelId || !checkInDate || !checkOutDate || !numMembers) {
-    res.status(400).json({ error: "All fields are required" });
-    return;
+) => {
+  const { hotelId, checkInDate, checkOutDate, numMembers } = req.body;
+  if (!hotelId || !checkInDate || !checkOutDate || !numMembers) {
+    return res.status(400).json({ error: "All fields are required" });
   }
-
+  if (new Date(checkInDate) >= new Date(checkOutDate)) {
+    return res
+      .status(400)
+      .json({ error: "Check-out date must be after check-in date" });
+  }
   try {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!req.user) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
     const hotel = await prisma.hotel.findUnique({ where: { id: hotelId } });
-    if (!user || !hotel) {
-      res.status(400).json({ error: "Invalid user or hotel" });
-      return;
-    }
-
-    const checkIn = new Date(checkInDate);
-    const checkOut = new Date(checkOutDate);
-    if (checkIn >= checkOut) {
-      res
-        .status(400)
-        .json({ error: "Check-out date must be after check-in date" });
-      return;
-    }
+    if (!hotel) return res.status(404).json({ error: "Hotel not found" });
 
     const booking = await prisma.booking.create({
       data: {
-        userId,
+        userId: req.user.id, // Safe after check
         hotelId,
-        checkInDate: checkIn,
-        checkOutDate: checkOut,
+        checkInDate: new Date(checkInDate),
+        checkOutDate: new Date(checkOutDate),
         numMembers,
       },
+      include: { user: true, hotel: true, checkIns: true },
     });
-
-    res
-      .status(201)
-      .json({ id: booking.id, message: "Booking created successfully" });
+    res.status(201).json(booking);
   } catch (error) {
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Failed to create booking" });
+  }
+};
+
+export const getBooking = async (req: AuthenticatedRequest, res: Response) => {
+  const bookingId = parseInt(req.params.id);
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { user: true, hotel: true, checkIns: true },
+    });
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+    if (booking.userId !== req.user.id) {
+      // Safe after check
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to view this booking" });
+    }
+    res.json(booking);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch booking" });
+  }
+};
+
+export const getHotelOccupancy = async (req: Request, res: Response) => {
+  const hotelId = parseInt(req.params.id);
+  try {
+    const hotel = await prisma.hotel.findUnique({
+      where: { id: hotelId },
+      include: {
+        bookings: {
+          include: { user: true, checkIns: true },
+        },
+      },
+    });
+    if (!hotel) return res.status(404).json({ error: "Hotel not found" });
+    res.json(hotel);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch hotel occupancy" });
+  }
+};
+
+export const getAllHotels = async (req: Request, res: Response) => {
+  try {
+    const hotels = await prisma.hotel.findMany({
+      include: {
+        bookings: {
+          include: { user: true, checkIns: true },
+        },
+      },
+    });
+    res.json(hotels);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch hotels" });
   }
 };

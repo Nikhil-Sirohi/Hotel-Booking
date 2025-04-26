@@ -1,9 +1,17 @@
 import { Router } from "express";
-import { getHotels, createBooking } from "../controllers/bookingController";
+import {
+  createBooking,
+  getBooking,
+  getHotelOccupancy,
+  getAllHotels,
+} from "../controllers/bookingController";
+import { authenticateToken } from "../middleware/auth";
 
 const router = Router();
 
-router.get("/hotels", getHotels);
-router.post("/book", createBooking);
+router.get("/hotels", authenticateToken, getAllHotels);
+router.get("/hotels/:id", authenticateToken, getHotelOccupancy);
+router.post("/", authenticateToken, createBooking);
+router.get("/:id", authenticateToken, getBooking);
 
 export default router;
